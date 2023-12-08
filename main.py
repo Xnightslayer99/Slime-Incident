@@ -8,7 +8,7 @@ pygame.display.set_caption('Slime Incident')
 # The game music
 pygame.mixer.music.load('slime incident - camellia.mp3')
 pygame.mixer.music.set_volume(0.05)
-pygame.mixer.music.play()
+#pygame.mixer.music.play()
 
 # initialize player
 global i_frames
@@ -307,7 +307,7 @@ def wave(enemies, enemies_to_spawn, spawn_verticies):
         enemies.append(Enemy(ctb, 1, spawn_locations[i][0] + 100, spawn_locations[i][1], enemies_to_spawn[i], 2*p.diffMult, 0))
       
 #drawing the screen
-def redraw():
+def redraw(activeRoom, previousRoom):
   #if the player is over 400p to the right, send them to the left size, and vice versa
   if p.x > 600:
     p.x = 9
@@ -320,6 +320,7 @@ def redraw():
   if p.y < 0:
     p.y = 441
   DISPLAYSURF.blit(pygame.transform.scale2x(background), (0,0))
+  pygame.draw.rect(DISPLAYSURF, (112, 112, 112), rooms[activeRoom])
   DISPLAYSURF.blit(p.image, (p.x, p.y))
   hearts = []
   if p.hp % 2 == 1:
@@ -391,7 +392,14 @@ level_changed = False
 current_level = p.level
 previous_level = p.level
 font = pygame.font.SysFont(None, 48)
+rooms =[]
+rooms.append(pygame.Rect((50, 50), (400, 300)))
+rooms.append(pygame.Rect((25, 100), (200, 150)))
+activeRoom = 0
+previousRoom = 0
 while True:
+  playerHitbox = pygame.Rect((p.x, p.y), (p.width, p.height))
+  #rooms[0].update((p.x, p.y), (25, 25))
   cooldown += 20
   if cooldown >= 400:
     cooldown = 0
@@ -446,7 +454,7 @@ while True:
     p.damage("h", p.maxHp, p.hp, 1501)
   if keys[pygame.K_w]:
     verticies = random.choice([3, 4, 8])
-    wave(enemies, [random.choice(enemyChoices) for each in range(verticies)], verticies)
+    #wave(enemies, [random.choice(enemyChoices) for each in range(verticies)], verticies)
   #makes each projectile move in the correct direction
   for projectile in projectiles:
     projectile.move(projectile.direction)
@@ -528,7 +536,7 @@ while True:
     pass
   if enemies == [] or (len(enemies) < p.level//3): #waves
     verticies = random.choice([3, 4, 8])
-    wave(enemies, [random.choice(enemyChoices) for each in range(verticies)], verticies)
+    #wave(enemies, [random.choice(enemyChoices) for each in range(verticies)], verticies)
 
   p.calcXp()
   current_level = p.level
@@ -548,6 +556,26 @@ while True:
       if event.type == QUIT:
         pygame.quit()
         sys.exit()
-  redraw()
+  if not rooms[activeRoom].contains(playerHitbox):
+    if activeRoom == 0 and previousRoom == 0:
+      activeRoom = 1
+    if activeRoom == 1 and previousRoom == 1:
+      activeRoom = 0
+    if activeRoom == 0 and previousRoom == 1:
+      previousRoom = 0
+      if p.x > rooms[activeRoom].centerx:
+        p.x, p.y = rooms[activeRoom].x + 17, rooms[activeRoom].y + 17
+        
+      else:
+        p.x, p.y = rooms[activeRoom].width - 17, rooms[activeRoom].height - 17
+    elif activeRoom == 1 and previousRoom == 0:
+      previousRoom = 1
+      if p.x > rooms[activeRoom].centerx:
+        p.x, p.y = rooms[activeRoom].x + 17, rooms[activeRoom].y + 17
+        
+      else:
+        p.x, p.y = rooms[activeRoom].width - 17, rooms[activeRoom].height - 17
+  print(activeRoom, previousRoom)
+  redraw(activeRoom, previousRoom)
   clock.tick(30)
           

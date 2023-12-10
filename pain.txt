@@ -1,0 +1,7 @@
+if the previous room was 0, the active room is 1
+if the active room is 1 and the previous room is 0, the previous room is 1
+if the previous room is 1 and the active room is 1, the active room is 2
+if the active room is 2 and the previous room is 1, the previous room is 2
+if the previous room is 2 and the active room is 2, the active room is 1
+if the previous room is 2 and the active room is 1, the active room is 0 and the previous room is 1
+if the previous room is 1 and the active room is 0, the previous room is 0 and the active room is 1

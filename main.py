@@ -351,7 +351,7 @@ def redraw(activeRoom, previousRoom):
           else:
             DISPLAYSURF.blit(hearts[i], (2+(i*16), 3))
     except:
-      print(i)
+      pass
   DISPLAYSURF.blits(((projectile.image, (projectile.x, projectile.y)) for projectile in projectiles))
   for enemy in enemies:
     if enemy.kind == "ctb":
@@ -361,6 +361,59 @@ def redraw(activeRoom, previousRoom):
   level = str(p.level)
   DISPLAYSURF.blit(font.render(level, True, (0, 0, 0)), (2, 30))
   pygame.display.update()
+
+#room logic thing?
+def roomLogic(activeRoom, previousRoom):
+  print("starting: ", activeRoom, previousRoom)
+  if activeRoom == 0 and previousRoom == 0:
+    activeRoom, previousRoom = 1, 1
+    
+  elif activeRoom == 1 and previousRoom == 0:
+    activeRoom, previousRoom = 2, 2
+    
+  elif previousRoom == 1 and activeRoom == 1:
+    activeRoom, previousRoom = 2, 2
+    
+  elif activeRoom == 2 and previousRoom == 1:
+    previousRoom = 2
+    
+  elif previousRoom == 2 and activeRoom == 2:
+    activeRoom = 1
+    
+  elif previousRoom == 2 and activeRoom == 1:
+    activeRoom, previousRoom = 0, 1
+    
+  elif previousRoom == 1 and activeRoom == 0:
+    previousRoom, activeRoom = 0, 1
+    
+  return activeRoom, previousRoom
+#room swapping
+def swapRoom(activeRoom, previousRoom, rooms):
+  if not rooms[activeRoom].contains(playerHitbox):
+      if activeRoom == 0 and p.x < rooms[activeRoom].centerx:
+        pass
+            #p.x = rooms[activeRoom].x
+      elif activeRoom == 2 and p.x > rooms[activeRoom].centerx:
+        pass
+          #p.x = rooms[activeRoom].width
+      else:
+        activeRoom, previousRoom = roomLogic(activeRoom, previousRoom)
+      print("final: ", activeRoom, previousRoom)
+      if p.x >= rooms[activeRoom].centerx:
+        if activeRoom == 2:
+          p.x = rooms[activeRoom].right-17
+          if p.y < rooms[activeRoom].y:
+            p.y = rooms[activeRoom].y + 17
+          else:
+            pass
+        else:
+          p.x, p.y = rooms[activeRoom].x + 17, rooms[activeRoom].y + 17
+      else:
+        if activeRoom == 0:
+          p.x = rooms[activeRoom].x
+        else:
+          p.x, p.y = rooms[activeRoom].width - 17, rooms[activeRoom].height - 17
+  return activeRoom, previousRoom
 
 #image loading
 player = pygame.image.load("player.png")
@@ -395,11 +448,11 @@ font = pygame.font.SysFont(None, 48)
 rooms =[]
 rooms.append(pygame.Rect((50, 50), (400, 300)))
 rooms.append(pygame.Rect((25, 100), (200, 150)))
+rooms.append(pygame.Rect((80, 200), (200, 200)))
 activeRoom = 0
 previousRoom = 0
 while True:
   playerHitbox = pygame.Rect((p.x, p.y), (p.width, p.height))
-  #rooms[0].update((p.x, p.y), (25, 25))
   cooldown += 20
   if cooldown >= 400:
     cooldown = 0
@@ -520,7 +573,6 @@ while True:
         i_frames += clock.get_time()
         if p.damage("d", 1*p.diffMult, p.hp, i_frames) == 0:
           i_frames = 0
-          continue
   #do enemy movement
   for enemy in enemies:
     if enemy.kind == "saltCube":
@@ -540,7 +592,7 @@ while True:
 
   p.calcXp()
   current_level = p.level
-  level_changed = not (current_level == previous_level)
+  level_changed = (current_level != previous_level)
   if level_changed:
     if p.changeLevelMods(burstShotUnlocked) == True: # do levels
       burstShotUnlocked = True
@@ -556,26 +608,7 @@ while True:
       if event.type == QUIT:
         pygame.quit()
         sys.exit()
-  if not rooms[activeRoom].contains(playerHitbox):
-    if activeRoom == 0 and previousRoom == 0:
-      activeRoom = 1
-    if activeRoom == 1 and previousRoom == 1:
-      activeRoom = 0
-    if activeRoom == 0 and previousRoom == 1:
-      previousRoom = 0
-      if p.x > rooms[activeRoom].centerx:
-        p.x, p.y = rooms[activeRoom].x + 17, rooms[activeRoom].y + 17
-        
-      else:
-        p.x, p.y = rooms[activeRoom].width - 17, rooms[activeRoom].height - 17
-    elif activeRoom == 1 and previousRoom == 0:
-      previousRoom = 1
-      if p.x > rooms[activeRoom].centerx:
-        p.x, p.y = rooms[activeRoom].x + 17, rooms[activeRoom].y + 17
-        
-      else:
-        p.x, p.y = rooms[activeRoom].width - 17, rooms[activeRoom].height - 17
-  print(activeRoom, previousRoom)
+  activeRoom, previousRoom = swapRoom(activeRoom, previousRoom, rooms)
   redraw(activeRoom, previousRoom)
   clock.tick(30)
           

@@ -390,29 +390,31 @@ def roomLogic(activeRoom, previousRoom):
 #room swapping
 def swapRoom(activeRoom, previousRoom, rooms):
   if not rooms[activeRoom].contains(playerHitbox):
-      if activeRoom == 0 and p.x < rooms[activeRoom].centerx:
+      if activeRoom == 0 and p.x < rooms[activeRoom].right:
         pass
             #p.x = rooms[activeRoom].x
-      elif activeRoom == 2 and p.x > rooms[activeRoom].centerx:
+      elif activeRoom == 2 and p.x > rooms[activeRoom].left:
         pass
           #p.x = rooms[activeRoom].width
       else:
         activeRoom, previousRoom = roomLogic(activeRoom, previousRoom)
       print("final: ", activeRoom, previousRoom)
-      if p.x >= rooms[activeRoom].centerx:
-        if activeRoom == 2:
-          p.x = rooms[activeRoom].right-17
-          if p.y < rooms[activeRoom].y:
-            p.y = rooms[activeRoom].y + 17
-          else:
-            pass
-        else:
-          p.x, p.y = rooms[activeRoom].x + 17, rooms[activeRoom].y + 17
-      else:
-        if activeRoom == 0:
+      if activeRoom == 2:
+        if p.x > rooms[activeRoom].right - 17:
+          p.x = rooms[activeRoom].right-16
+        if p.y < rooms[activeRoom].y:
+          p.y = rooms[activeRoom].y + 1
+        elif p.y > rooms[activeRoom].bottom - 16:
+          p.y = rooms[activeRoom].bottom - 16
+      elif activeRoom == 0:
+        if p.x < rooms[activeRoom].x:
           p.x = rooms[activeRoom].x
-        else:
-          p.x, p.y = rooms[activeRoom].width - 17, rooms[activeRoom].height - 17
+        if p.y < rooms[activeRoom].y:
+          p.y = rooms[activeRoom].y + 1
+        elif p.y > rooms[activeRoom].bottom - 16:
+          p.y = rooms[activeRoom].bottom - 16
+      else:
+        p.x, p.y = rooms[activeRoom].width - 17, rooms[activeRoom].height - 17
   return activeRoom, previousRoom
 
 #image loading

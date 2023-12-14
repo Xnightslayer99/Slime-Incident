@@ -114,14 +114,51 @@ class Player:
       self.strength += 1
     if self.level >= 10:
       return True
-  def attack(self, image, direction, attackType):
+  def attack(self, image, attackType, direction=-1, mouse=(None, None), timeToDeath=300, projectiles=[]):
     if attackType == "shot":
       projectiles.append(Projectile(self, image, 5, self.x + 4, self.y + 4, direction, self.pierce))
     elif attackType == "meele":
-      pass
+      offset_range = 15 #for allowing to swing horizontally and vertically
+
+      #horizontal
+      y_offsets = [int(self.y+i) for i in range(offset_range)]
+      y_offsets += [int(self.y-i) for i in range(offset_range)]
+
+      #vertical
+      x_offsets = [int(self.x+i) for i in range(offset_range * 2)]
+      x_offsets += [int(self.x-i) for i in range(offset_range * 2)]
+      mousex = mouse[0]
+      mousey = mouse[1]
+      above = not(mousey > self.y)
+      right = mousex > self.x
+      sameY = mousey in y_offsets
+      sameX = mousex in x_offsets
+      if right and sameY: # mouse is to the right
+        projectiles.append(Projectile(self, pygame.transform.rotozoom(image, 0, 2), 0, self.x, self.y, 2, self.pierce, timeToDeath=25))
+
+      elif not right and sameY: # mouse is to the left
+        projectiles.append(Projectile(self, pygame.transform.rotozoom(image, 180, 2), 0, self.x, self.y, 6, self.pierce, timeToDeath=25))
+
+      elif sameX and not above: # mouse is below
+        projectiles.append(Projectile(self, pygame.transform.rotozoom(image, -90, 2), 0, self.x, self.y, 0, self.pierce, timeToDeath=25))
+
+      elif sameX and above: #mouse is above
+        projectiles.append(Projectile(self, pygame.transform.rotozoom(image, 90, 2), 0, self.x, self.y, 4, self.pierce, timeToDeath=25))
+
+      elif not right and above: # mouse is to the left and above
+        projectiles.append(Projectile(self, pygame.transform.rotozoom(image, 135, 2), 0, self.x - 16, self.y, 5, self.pierce, timeToDeath=25))
+
+      elif not right and not above: # mouse is to the left and below
+        projectiles.append(Projectile(self, pygame.transform.rotozoom(image, -135, 2), 0, self.x, self.y, 7, self.pierce, timeToDeath=25))
+
+      elif right and above: # mouse is to the right and above???
+        projectiles.append(Projectile(self, pygame.transform.rotozoom(image, 45, 2), 0, self.x, self.y-16, 3, self.pierce, timeToDeath=25))
+
+      elif right and not above: # mouse is to the right and below
+        projectiles.append(Projectile(self, pygame.transform.rotozoom(image, -45, 2), 0, self.x-3, self.y, 1, self.pierce, timeToDeath=25))
 #initialize projectile
 class Projectile():
-  def __init__(self, owner, image, speed, x, y, direction, pierce):
+  def __init__(self, owner, image, speed, x, y, direction, pierce, timeToDeath=10000000):
     self.image = image
     self.speed = speed
     self.owner = owner
@@ -129,7 +166,7 @@ class Projectile():
     self. y = y
     self.direction = direction
     self.pierce = pierce
-
+    self.timeToDeath = timeToDeath
   #sets up the movement
   def move(self, direction):
     if direction == 2: #right
@@ -505,13 +542,13 @@ while True:
       direction = 2
     if keys[pygame.K_SPACE]:
       if p.attemptShot("basic") == True:
-        p.attack(droplet, direction, "shot")
+        p.attack(droplet, "shot", direction, projectiles=projectiles)
       else:
         basicOnCooldown = True
     if keys[pygame.K_c] and burstShotUnlocked:
         if p.attemptShot("burst") == True:
           for i in range(1, 9):
-            projectiles.append(Projectile(p, droplet, 5, p.x + 4, p.y + 4, i-1, p.pierce))
+            p.attack(droplet, "shot", i-1, projectiles=projectiles)
         else:
           burstOnCooldown = True
     if keys[pygame.K_d] and cooldown == 0:
@@ -524,6 +561,10 @@ while True:
     #makes each projectile move in the correct direction
     for projectile in projectiles:
       projectile.move(projectile.direction)
+      projectile.timeToDeath -= 5
+      if projectile.timeToDeath <= 0:
+        projectiles.remove(projectile)
+      print((projectile.x, projectile.y), (p.x, p.y))
   
     #do i-frame stuff and shot cooldown stuff
     i_frames += 20
@@ -535,7 +576,7 @@ while True:
     for projectile in projectiles:
       enemies_hit = 0
       
-      if projectile.owner == p: #checks if the projectile is owned by the player
+      if projectile.owner == p and projectile.image != slash: #checks if the projectile is owned by the player
         for enemy in enemies:
           if enemy.kind == "saltCube":
             if projectile.x > enemy.x - enemy.width and projectile.x < enemy.x + enemy.width and projectile.y > enemy.y - enemy.height and projectile.y < enemy.y + enemy.height:
@@ -611,14 +652,15 @@ while True:
         burstShotUnlocked = True
     previous_level = current_level
     activeRoom, previousRoom = swapRoom(activeRoom, previousRoom, rooms)
-    redraw(activeRoom, previousRoom)
     mouse = pygame.mouse.get_pos()
     for event in pygame.event.get():
       if event.type == QUIT:
         pygame.quit()
         sys.exit()
-      if event.type == pygame.MOUSEBUTTONUP:
-        pass
+      if event.type == pygame.MOUSEBUTTONDOWN:
+        mousePos = pygame.mouse.get_pos()
+        p.attack(slash, "meele", mouse=mousePos, projectiles=projectiles)
+    redraw(activeRoom, previousRoom)
     clock.tick(30)
     """
   if p.hp <= 0: #player death
@@ -677,9 +719,9 @@ while True:
             break
       if gameState == 'main':
         break
-        if event.type == QUIT:
-          pygame.quit()
-          sys.exit()
+      if event.type == QUIT:
+        pygame.quit()
+        sys.exit()
       #draw buttons
       #draw buttons
       pygame.display.update()

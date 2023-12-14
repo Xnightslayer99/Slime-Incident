@@ -6,8 +6,8 @@ clock = pygame.time.Clock()
 pygame.display.set_caption('Slime Incident')
 
 # The game music
-pygame.mixer.music.load('slime incident - camellia.mp3')
-pygame.mixer.music.set_volume(0.05)
+#pygame.mixer.music.load('slime incident - camellia.mp3')
+#pygame.mixer.music.set_volume(0.05)
 #pygame.mixer.music.play()
 
 # initialize player
@@ -114,6 +114,11 @@ class Player:
       self.strength += 1
     if self.level >= 10:
       return True
+  def attack(self, image, direction, attackType):
+    if attackType == "shot":
+      projectiles.append(Projectile(self, image, 5, self.x + 4, self.y + 4, direction, self.pierce))
+    elif attackType == "meele":
+      pass
 #initialize projectile
 class Projectile():
   def __init__(self, owner, image, speed, x, y, direction, pierce):
@@ -371,8 +376,11 @@ def roomLogic(activeRoom, previousRoom):
   elif activeRoom == 1 and previousRoom == 0:
     activeRoom, previousRoom = 2, 2
     
-  elif previousRoom == 1 and activeRoom == 1:
-    activeRoom, previousRoom = 2, 2
+  elif activeRoom == 1 and (previousRoom == 0 or previousRoom == 2 or previousRoom == 1):
+    if p.x > rooms[activeRoom].centerx:
+      activeRoom, previousRoom = 2, 2
+    elif p.x < rooms[activeRoom].centerx:
+      activeRoom, previousRoom = 0, 1
     
   elif activeRoom == 2 and previousRoom == 1:
     previousRoom = 2
@@ -424,6 +432,7 @@ droplet = pygame.image.load("droplet.png")
 droplet_ctb = pygame.image.load('droplet-enemy.png')
 heart_full, heart_half, heart_empty = pygame.image.load("heart-full.png"), pygame.image.load("heart-half.png"), pygame.image.load("heart-empty.png")
 gameover = pygame.image.load("deathScreen.png")
+slash = pygame.image.load("slash.png")
 
 #background initialization
 DISPLAYSURF.blit(background, (0,0))
@@ -453,164 +462,224 @@ rooms.append(pygame.Rect((25, 100), (200, 150)))
 rooms.append(pygame.Rect((80, 200), (200, 200)))
 activeRoom = 0
 previousRoom = 0
+gameState = 'starting'
 while True:
-  playerHitbox = pygame.Rect((p.x, p.y), (p.width, p.height))
-  cooldown += 20
-  if cooldown >= 400:
-    cooldown = 0
-  if basicOnCooldown:
-    p.basicShotCooldown += 5
-  if burstOnCooldown:
-    p.shotCooldown += 5
-  keys = pygame.key.get_pressed()
-  #direction is added to avoid the projectile moving in the direction the player is constantly (that was a bug that happened, it was hilarious)
-  global direction
-  direction = 0
-  if keys[pygame.K_l]:
-    p.level += 1
-  if keys[pygame.K_UP]:
-    p.move(up=True)
+  if gameState == 'main':
+    playerHitbox = pygame.Rect((p.x, p.y), (p.width, p.height))
+    cooldown += 20
+    if cooldown >= 400:
+      cooldown = 0
+    if basicOnCooldown:
+      p.basicShotCooldown += 5
+    if burstOnCooldown:
+      p.shotCooldown += 5
+    keys = pygame.key.get_pressed()
+    #direction is added to avoid the projectile moving in the direction the player is constantly (that was a bug that happened, it was hilarious)
+    global direction
     direction = 0
-    if keys[pygame.K_LEFT]:
+    if keys[pygame.K_l]:
+      p.level += 1
+    if keys[pygame.K_UP]:
+      p.move(up=True)
+      direction = 0
+      if keys[pygame.K_LEFT]:
+        p.move(left=True)
+        direction = 7
+      elif keys[pygame.K_RIGHT]:
+        p.move(right=True)
+        direction = 1
+    elif keys[pygame.K_DOWN]:
+      p.move(down=True)
+      direction = 4
+      if keys[pygame.K_LEFT]:
+        p.move(left=True)
+        direction = 5
+      elif keys[pygame.K_RIGHT]:
+        p.move(right=True)
+        direction = 3
+    elif keys[pygame.K_LEFT]:
       p.move(left=True)
-      direction = 7
+      direction = 6
     elif keys[pygame.K_RIGHT]:
       p.move(right=True)
-      direction = 1
-  elif keys[pygame.K_DOWN]:
-    p.move(down=True)
-    direction = 4
-    if keys[pygame.K_LEFT]:
-      p.move(left=True)
-      direction = 5
-    elif keys[pygame.K_RIGHT]:
-      p.move(right=True)
-      direction = 3
-  elif keys[pygame.K_LEFT]:
-    p.move(left=True)
-    direction = 6
-  elif keys[pygame.K_RIGHT]:
-    p.move(right=True)
-    direction = 2
-  if keys[pygame.K_SPACE]:
-    if p.attemptShot("basic") == True:
-      projectiles.append(Projectile(p, droplet, 5, p.x + 4, p.y + 4, direction, p.pierce))
-    else:
-      basicOnCooldown = True
-  if keys[pygame.K_c] and burstShotUnlocked:
-      if p.attemptShot("burst") == True:
-        for i in range(1, 9):
-          projectiles.append(Projectile(p, droplet, 5, p.x + 4, p.y + 4, i-1, p.pierce))
+      direction = 2
+    if keys[pygame.K_SPACE]:
+      if p.attemptShot("basic") == True:
+        p.attack(droplet, direction, "shot")
       else:
-        burstOnCooldown = True
-  if keys[pygame.K_d] and cooldown == 0:
-    p.damage("d", 1, p.hp, 1501)
-  if keys[pygame.K_h]:
-    p.damage("h", p.maxHp, p.hp, 1501)
-  if keys[pygame.K_w]:
-    verticies = random.choice([3, 4, 8])
-    #wave(enemies, [random.choice(enemyChoices) for each in range(verticies)], verticies)
-  #makes each projectile move in the correct direction
-  for projectile in projectiles:
-    projectile.move(projectile.direction)
-
-  #do i-frame stuff and shot cooldown stuff
-  i_frames += 20
-  for enemy in enemies:
-    enemy.i_frame += 20
-  shot_cooldown += 20
+        basicOnCooldown = True
+    if keys[pygame.K_c] and burstShotUnlocked:
+        if p.attemptShot("burst") == True:
+          for i in range(1, 9):
+            projectiles.append(Projectile(p, droplet, 5, p.x + 4, p.y + 4, i-1, p.pierce))
+        else:
+          burstOnCooldown = True
+    if keys[pygame.K_d] and cooldown == 0:
+      p.damage("d", 1, p.hp, 1501)
+    if keys[pygame.K_h]:
+      p.damage("h", p.maxHp, p.hp, 1501)
+    if keys[pygame.K_w]:
+      verticies = random.choice([3, 4, 8])
+      #wave(enemies, [random.choice(enemyChoices) for each in range(verticies)], verticies)
+    #makes each projectile move in the correct direction
+    for projectile in projectiles:
+      projectile.move(projectile.direction)
   
-  #checks if the projectiles hit the enemies
-  for projectile in projectiles:
-    enemies_hit = 0
+    #do i-frame stuff and shot cooldown stuff
+    i_frames += 20
+    for enemy in enemies:
+      enemy.i_frame += 20
+    shot_cooldown += 20
     
-    if projectile.owner == p: #checks if the projectile is owned by the player
-      for enemy in enemies:
-        if enemy.kind == "saltCube":
-          if projectile.x > enemy.x - enemy.width and projectile.x < enemy.x + enemy.width and projectile.y > enemy.y - enemy.height and projectile.y < enemy.y + enemy.height:
-            for i in range(projectile.pierce):
-              if enemy.damage("d", p.strength, enemy.hp) == 0:
-                enemy.i_frame = 0
-                projectile.pierce -= 1
-              try:
-                if projectile.pierce == 0: #adds pierce
-                  projectiles.remove(projectile)
-                  break
-                if enemy.hp <= 0:
-                  p.exp += 1
-                  enemies.remove(enemy)
-                  break
-              except:
-                pass
-        elif enemy.kind == "ctb":
-          if projectile.x > enemy.x - enemy.width and projectile.x < enemy.x + enemy.width and projectile.y > (enemy.y-8) - enemy.height and projectile.y < (enemy.y-8) + enemy.height:
-            for i in range(projectile.pierce):
-              if enemy.damage("d", p.strength, enemy.hp) == 0:
-                enemy.i_frame = 0
-                projectile.pierce -= 1
-              try:
-                if projectile.pierce == 0: #adds pierce
-                  projectiles.remove(projectile)
-                  break
-                if enemy.hp <= 0:
-                  p.exp += 2
-                  enemies.remove(enemy)
-                  break
-              except:
-                pass
-    elif projectile.owner in enemies: #since the owner is not the player, check if it is touching the player to apply damage
-      if projectile.x > p.x - p.width and projectile.x < p.x + p.width and projectile.y > p.y - p.height and projectile.y < p.y + p.height:
-        i_frames += 5 * clock.get_time()
-        if p.damage("d", 1*p.diffMult, p.hp, i_frames) == 0:
-          i_frames = 0
-          continue
-        try:
-            projectiles.remove(projectile)
-        except:
-          pass
-  #checks if enemies are touching the player
-  for enemy in enemies:
-    if enemy.kind == "saltCube":
-      if p.x > enemy.x - enemy.width and p.x < enemy.x + enemy.width and p.y > enemy.y - enemy.height and p.y < enemy.y + enemy.height:
-        i_frames += clock.get_time()
-        if p.damage("d", 1*p.diffMult, p.hp, i_frames) == 0:
-          i_frames = 0
-  #do enemy movement
-  for enemy in enemies:
-    if enemy.kind == "saltCube":
-      enemy.saltCubeAi(p.x, p.y)
-    if enemy.kind == "ctb":
-      if enemy.ctbAi(p.x, p.y, shot_cooldown) == 0:
-        shot_cooldown = 0
-  try:
-    for i in range(len(projectiles)): #removes projectiles that are out of bounds
-      if projectiles[i].x > 600 or projectiles[i].x < 0 or projectiles[i].y > 450 or projectiles[i].y < 0:
-        projectiles.pop(i)
-  except:
-    pass
-  if enemies == [] or (len(enemies) < p.level//3): #waves
-    verticies = random.choice([3, 4, 8])
-    #wave(enemies, [random.choice(enemyChoices) for each in range(verticies)], verticies)
-
-  p.calcXp()
-  current_level = p.level
-  level_changed = (current_level != previous_level)
-  if level_changed:
-    if p.changeLevelMods(burstShotUnlocked) == True: # do levels
-      burstShotUnlocked = True
-  previous_level = current_level
+    #checks if the projectiles hit the enemies
+    for projectile in projectiles:
+      enemies_hit = 0
+      
+      if projectile.owner == p: #checks if the projectile is owned by the player
+        for enemy in enemies:
+          if enemy.kind == "saltCube":
+            if projectile.x > enemy.x - enemy.width and projectile.x < enemy.x + enemy.width and projectile.y > enemy.y - enemy.height and projectile.y < enemy.y + enemy.height:
+              for i in range(projectile.pierce):
+                if enemy.damage("d", p.strength, enemy.hp) == 0:
+                  enemy.i_frame = 0
+                  projectile.pierce -= 1
+                try:
+                  if projectile.pierce == 0: #adds pierce
+                    projectiles.remove(projectile)
+                    break
+                  if enemy.hp <= 0:
+                    p.exp += 1
+                    enemies.remove(enemy)
+                    break
+                except:
+                  pass
+          elif enemy.kind == "ctb":
+            if projectile.x > enemy.x - enemy.width and projectile.x < enemy.x + enemy.width and projectile.y > (enemy.y-8) - enemy.height and projectile.y < (enemy.y-8) + enemy.height:
+              for i in range(projectile.pierce):
+                if enemy.damage("d", p.strength, enemy.hp) == 0:
+                  enemy.i_frame = 0
+                  projectile.pierce -= 1
+                try:
+                  if projectile.pierce == 0: #adds pierce
+                    projectiles.remove(projectile)
+                    break
+                  if enemy.hp <= 0:
+                    p.exp += 2
+                    enemies.remove(enemy)
+                    break
+                except:
+                  pass
+      elif projectile.owner in enemies: #since the owner is not the player, check if it is touching the player to apply damage
+        if projectile.x > p.x - p.width and projectile.x < p.x + p.width and projectile.y > p.y - p.height and projectile.y < p.y + p.height:
+          i_frames += 5 * clock.get_time()
+          if p.damage("d", 1*p.diffMult, p.hp, i_frames) == 0:
+            i_frames = 0
+            continue
+          try:
+              projectiles.remove(projectile)
+          except:
+            pass
+    #checks if enemies are touching the player
+    for enemy in enemies:
+      if enemy.kind == "saltCube":
+        if p.x > enemy.x - enemy.width and p.x < enemy.x + enemy.width and p.y > enemy.y - enemy.height and p.y < enemy.y + enemy.height:
+          i_frames += clock.get_time()
+          if p.damage("d", 1*p.diffMult, p.hp, i_frames) == 0:
+            i_frames = 0
+    #do enemy movement
+    for enemy in enemies:
+      if enemy.kind == "saltCube":
+        enemy.saltCubeAi(p.x, p.y)
+      if enemy.kind == "ctb":
+        if enemy.ctbAi(p.x, p.y, shot_cooldown) == 0:
+          shot_cooldown = 0
+    try:
+      for i in range(len(projectiles)): #removes projectiles that are out of bounds
+        if projectiles[i].x > 600 or projectiles[i].x < 0 or projectiles[i].y > 450 or projectiles[i].y < 0:
+          projectiles.pop(i)
+    except:
+      pass
+    if enemies == [] or (len(enemies) < p.level//3): #waves
+      verticies = random.choice([3, 4, 8])
+      #wave(enemies, [random.choice(enemyChoices) for each in range(verticies)], verticies)
+  
+    p.calcXp()
+    current_level = p.level
+    level_changed = (current_level != previous_level)
+    if level_changed:
+      if p.changeLevelMods(burstShotUnlocked) == True: # do levels
+        burstShotUnlocked = True
+    previous_level = current_level
+    activeRoom, previousRoom = swapRoom(activeRoom, previousRoom, rooms)
+    redraw(activeRoom, previousRoom)
+    mouse = pygame.mouse.get_pos()
+    for event in pygame.event.get():
+      if event.type == QUIT:
+        pygame.quit()
+        sys.exit()
+      if event.type == pygame.MOUSEBUTTONUP:
+        pass
+    clock.tick(30)
+    """
   if p.hp <= 0: #player death
     DISPLAYSURF.blit(background, (0,0))
     DISPLAYSURF.blit(pygame.transform.scale2x(gameover), (0, 0))
     pygame.display.update()
     pygame.time.wait(2000)
     pygame.quit()
-    quit()
-  for event in pygame.event.get():
-      if event.type == QUIT:
-        pygame.quit()
-        sys.exit()
-  activeRoom, previousRoom = swapRoom(activeRoom, previousRoom, rooms)
-  redraw(activeRoom, previousRoom)
-  clock.tick(30)
-          
+    quit()"""
+  if gameState == 'starting':
+    while gameState == 'starting':
+      DISPLAYSURF.blit(pygame.transform.scale2x(background), (0,0))
+      startButton = pygame.Rect((600//2, 450//2), (75, 30))
+      start = 'Start'
+      DISPLAYSURF.blit(font.render(start, True, (0, 0, 0)), (startButton.x, startButton.y))
+      for event in pygame.event.get():
+        if event.type == pygame.MOUSEBUTTONDOWN:
+          mouse = pygame.mouse.get_pos()
+          if mouse[0] > startButton.x and mouse[0] < startButton.right and mouse[1] > startButton.y and mouse[1] < startButton.bottom:
+            gameState = 'characterSelect'
+            break
+          print(mouse, (startButton.x, startButton.y), (startButton.right, startButton.bottom))
+
+        if event.type == QUIT:
+          pygame.quit()
+          sys.exit()
+      if gameState == 'characterSelect':
+        break
+      pygame.display.update()
+  if gameState == 'characterSelect':
+    while gameState == 'characterSelect':
+      DISPLAYSURF.blit(pygame.transform.scale2x(background), (0,0))
+      mage = startButton = pygame.Rect((50, 450//2), (75, 30))
+      bers = startButton = pygame.Rect((250, 450//2), (160, 30))
+      arch = startButton = pygame.Rect((450, 450//2), (100, 30))
+      Mage= 'mage'
+      Bers= 'berserker'
+      Arch = 'archer'
+      DISPLAYSURF.blit(font.render(Mage, True, (0, 0, 0)), (mage.x, mage.y))
+      DISPLAYSURF.blit(font.render(Bers, True, (0, 0, 0)), (bers.x, bers.y))
+      DISPLAYSURF.blit(font.render(Arch, True, (0, 0, 0)), (arch.x, arch.y))
+      for event in pygame.event.get():
+        if event.type == pygame.MOUSEBUTTONDOWN:
+          mouse = pygame.mouse.get_pos()
+          if mouse[0] > mage.x and mouse[0] < mage.right and mouse[1] > mage.y and mouse[1] < mage.bottom:
+            gameState = 'main'
+            classChoice = Mage
+            break
+          elif mouse[0] > bers.x and mouse[0] < bers.right and mouse[1] > bers.y and mouse[1] < bers.bottom:
+            gameState = 'main'
+            classChoice = Bers
+            break
+          elif mouse[0] > arch.x and mouse[0] < arch.right and mouse[1] > arch.y and mouse[1] < arch.bottom:
+            gameState = 'main'
+            classChoise = Arch
+            break
+      if gameState == 'main':
+        break
+        if event.type == QUIT:
+          pygame.quit()
+          sys.exit()
+      #draw buttons
+      #draw buttons
+      pygame.display.update()

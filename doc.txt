@@ -1,0 +1,23 @@
+The story:
+for the non-demo it will be that you play as a slime and try to get your slime friends back from the giant red slime-eater
+
+Target audience is children
+
+Audio is techno (by camellia who just so happened to make a song with the same name)
+
+Logo is the slime, The original character i created was also the slime (all sprites were made by me)
+
+How to play:
+WASD to move
+berserker/archer have a left click
+mage uses spacebar and c
+archer also uses spacebar
+berserker has a parry (right click)
+
+heath can be obtained in the following ways:
+1. leveling up
+2. parrying a bullet with your sword
+
+enemies are eliminated when their hp reaches 0, deal damage to them using your attacks
+
+death is disabled for ease of grading

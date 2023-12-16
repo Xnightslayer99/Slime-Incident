@@ -6,9 +6,9 @@ clock = pygame.time.Clock()
 pygame.display.set_caption('Slime Incident')
 
 # The game music
-#pygame.mixer.music.load('slime incident - camellia.mp3')
-#pygame.mixer.music.set_volume(0.05)
-#pygame.mixer.music.play()
+pygame.mixer.music.load('slime incident - camellia.mp3')
+pygame.mixer.music.set_volume(0.05)
+pygame.mixer.music.play()
 
 # initialize player
 global i_frames
@@ -26,10 +26,11 @@ class Player:
     self.hp = maxHp
     self.pierce = 3
     self.diffMult = 1
-    if Class == 'bers':
+    if Class == 'berserker':
       self.strength = 3
     else:
       self.strength = 1
+    self.Class = Class
     self.basicShotCooldown = 300 #basic shot type
     self.basicShotCooldown_limit = self.basicShotCooldown #sets the limit to which the cooldown can be reset
         
@@ -310,7 +311,59 @@ class Enemy:
       
       if shot_cooldown == 0:
         return 0
-
+  def bossAi(self, player_x, player_y, shot_cooldown):
+    #change height and width values
+    self.width = 64
+    self.height = 64
+    if shot_cooldown > 250:
+      shot_cooldown = 0
+    offset_range = 15 #for allowing the enemy to shoot horizontally and vertically
+    
+    #horizontal
+    y_offsets = [int(self.y+i) for i in range(offset_range)]
+    y_offsets += [int(self.y-i) for i in range(offset_range)]
+    
+    #vertical
+    x_offsets = [int(self.x+i) for i in range(offset_range)]
+    x_offsets += [int(self.x-i) for i in range(offset_range)]
+    above = not(player_y > self.y)
+    right = player_x > self.x
+    sameY = player_y in y_offsets
+    sameX = player_x in x_offsets
+    if above:
+      self.move(0, -1)
+    if not above:
+      self.move(0, 1)
+    if right:
+      self.move(1,0)
+    if not right:
+      self.move(-1, 0)
+    if right and sameY and shot_cooldown == 0: # player is to the right
+      projectiles.append(Projectile(self, droplet_ctb, 5, self.x + self.width//4, self.y + self.height//4, 2, 1))
+      
+    elif not right and sameY and shot_cooldown == 0: # player is to the left
+      projectiles.append(Projectile(self, droplet_ctb, 5, self.x + self.width//4, self.y + self.height//4, 6, 1))
+      
+    elif sameX and above and shot_cooldown == 0: # player is above
+      projectiles.append(Projectile(self, droplet_ctb, 5, self.x + self.width//4, self.y + self.height//4, 0, 1))
+      
+    elif sameX and not above and shot_cooldown == 0: #player is below
+      projectiles.append(Projectile(self, droplet_ctb, 5, self.x + self.width//4, self.y + self.height//4, 4, 1))
+      
+    elif not right and not above and shot_cooldown == 0: # player is to the left and below
+      projectiles.append(Projectile(self, droplet_ctb, 5, self.x + self.width//4, self.y + self.height//4, 5, 1))
+      
+    elif not right and above and shot_cooldown == 0: # player is to the left and above
+      projectiles.append(Projectile(self, droplet_ctb, 5, self.x + self.width//4, self.y + self.height//4, 7, 1))
+      
+    elif right and not above and shot_cooldown == 0: # player is to the right and below
+      projectiles.append(Projectile(self, droplet_ctb, 5, self.x + self.width//4, self.y + self.height//4, 3, 1))
+      
+    elif right and above and shot_cooldown == 0: # player is to the right and above
+      projectiles.append(Projectile(self, droplet_ctb, 5, self.x + self.width//4, self.y + self.height//4, 1, 1))
+    
+    if shot_cooldown == 0:
+      return 0
   def damage(self, kind, amount, currentHp):
     if self.i_frame < 250:
       return True
@@ -353,7 +406,7 @@ def wave(enemies, enemies_to_spawn, spawn_verticies):
         enemies.append(Enemy(ctb, 1, spawn_locations[i][0] + 100, spawn_locations[i][1], enemies_to_spawn[i], 2*p.diffMult, 0))
       
 #drawing the screen
-def redraw(activeRoom, previousRoom):
+def redraw(activeRoom, previousRoom, p):
   #if the player is over 400p to the right, send them to the left size, and vice versa
   if p.x > 600:
     p.x = 9
@@ -400,12 +453,43 @@ def redraw(activeRoom, previousRoom):
       pass
   DISPLAYSURF.blits(((projectile.image, (projectile.x, projectile.y)) for projectile in projectiles))
   for enemy in enemies:
-    if enemy.kind == "ctb":
-      DISPLAYSURF.blit(pygame.transform.scale2x(enemy.image), (enemy.x, enemy.y-8))
+    if enemy.kind == "ctb" or enemy.kind == "boss":
+      DISPLAYSURF.blit(pygame.transform.scale2x(enemy.image), (enemy.x, enemy.y-enemy.height // 4))
     else:
       DISPLAYSURF.blit(enemy.image, (enemy.x, enemy.y))
   level = str(p.level)
+  font = pygame.font.SysFont(None, 48)
   DISPLAYSURF.blit(font.render(level, True, (0, 0, 0)), (2, 30))
+  font = pygame.font.SysFont(None, 25)
+  if activeRoom == 0:
+    Text = 'Welcome to Slime Incident, use WASD to move'
+    DISPLAYSURF.blit(font.render(Text, True, (0, 0, 0)), (55, 390))
+    text = "Please proceed to the next room to continue"
+    DISPLAYSURF.blit(font.render(text, True, (0, 0, 0)), (55, 410))
+  if activeRoom == 1:
+    if p.Class == "berserker":
+      Text = 'As berserker, you can swing at enemies using Left click'
+      DISPLAYSURF.blit(font.render(Text, True, (0, 0, 0)), (70, 41))
+      Text = "Using Right click, you can parry(reflect) an enemy's shot"
+      DISPLAYSURF.blit(font.render(Text, True, (0, 0, 0)), (70, 71))
+    if p.Class == "mage":
+      Text = 'As mage, you can shoot at enemies using the spacebar'
+      DISPLAYSURF.blit(font.render(Text, True, (0, 0, 0)), (70, 41))
+      Text = "Using the C key you can do a burst shot (both have cooldowns)"
+      DISPLAYSURF.blit(font.render(Text, True, (0, 0, 0)), (70, 71))
+    if p.Class == "archer":
+      Text = 'As Archer, you can shoot at enemies using the spacebar'
+      DISPLAYSURF.blit(font.render(Text, True, (0, 0, 0)), (70, 41))
+      Text = "Using left click you can swing at enemies"
+      DISPLAYSURF.blit(font.render(Text, True, (0, 0, 0)), (70, 71))
+    Text = "try it against these enemies"
+    DISPLAYSURF.blit(font.render(Text, True, (0, 0, 0)), (365, 131))
+    Text = "press r to spawn more"
+    DISPLAYSURF.blit(font.render(Text, True, (0, 0, 0)), (365, 161))
+    Text = "press h to heal"
+    DISPLAYSURF.blit(font.render(Text, True, (0, 0, 0)), (365, 191))
+    Text = "next is the boss room"
+    DISPLAYSURF.blit(font.render(Text, True, (0, 0, 0)), (365, 221))
   pygame.display.update()
 
 #room logic thing?
@@ -437,8 +521,18 @@ def roomLogic(activeRoom, previousRoom):
     
   return activeRoom, previousRoom
 #room swapping
-def swapRoom(activeRoom, previousRoom, rooms):
+def swapRoom(activeRoom, previousRoom, rooms, noEscape):
   if not rooms[activeRoom].contains(playerHitbox):
+    if noEscape:
+      if p.x > rooms[activeRoom].right - 17:
+          p.x = rooms[activeRoom].right-16
+      elif p.x < rooms[activeRoom].left + 16:
+        p.x = rooms[activeRoom].left + 17
+      if p.y < rooms[activeRoom].y:
+        p.y = rooms[activeRoom].y + 1
+      elif p.y > rooms[activeRoom].bottom - 16:
+        p.y = rooms[activeRoom].bottom - 16
+    else:
       if activeRoom == 0 and p.x < rooms[activeRoom].right:
         pass
             #p.x = rooms[activeRoom].x
@@ -463,7 +557,7 @@ def swapRoom(activeRoom, previousRoom, rooms):
         elif p.y > rooms[activeRoom].bottom - 16:
           p.y = rooms[activeRoom].bottom - 16
       else:
-        p.x, p.y = rooms[activeRoom].width - 17, rooms[activeRoom].height - 17
+        p.x, p.y = rooms[activeRoom].x + 17, rooms[activeRoom].height - 17
   return activeRoom, previousRoom
 
 #image loading
@@ -475,6 +569,7 @@ heart_full, heart_half, heart_empty = pygame.image.load("heart-full.png"), pygam
 gameover = pygame.image.load("deathScreen.png")
 slash = pygame.image.load("slash.png")
 parry = pygame.image.load('parry.png')
+boss = pygame.image.load('boss.png')
 #background initialization
 DISPLAYSURF.blit(background, (0,0))
 
@@ -482,26 +577,33 @@ DISPLAYSURF.blit(background, (0,0))
 pygame.display.update()
 
 #sets up enemies, player(and their hp), and projectiles
-enemies = []
-enemyChoices = ['saltCube', 'ctb']
-projectiles = []
-#Main loop
-cooldown = 0
-shot_cooldown = 0
-ei_frames = 0
-burstShotUnlocked = False
-burstOnCooldown = True
-basicOnCooldown = True
-level_changed = False
-current_level = 0
-previous_level = 0
-font = pygame.font.SysFont(None, 48)
-rooms =[]
-rooms.append(pygame.Rect((50, 50), (400, 300)))
-rooms.append(pygame.Rect((25, 100), (200, 150)))
-rooms.append(pygame.Rect((80, 200), (200, 200)))
-activeRoom = 0
-previousRoom = 0
+def init():
+  global enemies, enemyChoices, projectiles, cooldown, shot_cooldown, burstOnCooldown, ei_frames, burstShotUnlocked, basicOnCooldown, level_changed, current_level, previous_level, font, activeRoom, previousRoom, gameState, firstRoomEnemiesSpawned, bossSlain, bossSpawned, noEscape, rooms
+  enemies = []
+  enemyChoices = ['saltCube', 'ctb']
+  projectiles = []
+  #Main loop
+  cooldown = 0
+  shot_cooldown = 0
+  ei_frames = 0
+  burstShotUnlocked = False
+  burstOnCooldown = True
+  basicOnCooldown = True
+  level_changed = False
+  current_level = 0
+  previous_level = 0
+  font = pygame.font.SysFont(None, 48)
+  rooms =[]
+  rooms.append(pygame.Rect((50, 50), (400, 300)))
+  rooms.append(pygame.Rect((50, 100), (300, 300)))
+  rooms.append(pygame.Rect((75, 50), (400, 350)))
+  activeRoom = 0
+  previousRoom = 0
+  firstRoomEnemiesSpawned = False
+  bossSlain = False
+  bossSpawned = False
+  noEscape = False
+init()
 gameState = 'starting'
 while True:
   if gameState == 'main':
@@ -545,11 +647,11 @@ while True:
       p.move(right=True)
       direction = 2
     if keys[pygame.K_SPACE]:
-      if p.attemptShot("basic") == True:
+      if p.attemptShot("basic") == True and p.Class != "berserker":
         p.attack(droplet, "shot", direction, projectiles=projectiles)
       else:
         basicOnCooldown = True
-    if keys[pygame.K_c] and burstShotUnlocked:
+    if keys[pygame.K_c] and p.Class == "mage":
         if p.attemptShot("burst") == True:
           for i in range(1, 9):
             p.attack(droplet, "shot", i-1, projectiles=projectiles)
@@ -557,16 +659,19 @@ while True:
           burstOnCooldown = True
     if keys[pygame.K_h]:
       p.damage("h", p.maxHp, p.hp, 1501)
-    if keys[pygame.K_c]:
+    if keys[pygame.K_r]:
       verticies = random.choice([3, 4, 8])
       wave(enemies, [random.choice(enemyChoices) for each in range(verticies)], verticies)
+    if keys[pygame.K_b]:
+      enemies.append(Enemy(boss, 1, rooms[activeRoom].centerx, rooms[activeRoom].centery, "boss", 25*p.diffMult, 0))
+      bossSpawned = True
+      noEscape = True
     #makes each projectile move in the correct direction
     for projectile in projectiles:
       projectile.move(projectile.direction)
       projectile.timeToDeath -= 5
       if projectile.timeToDeath <= 0:
         projectiles.remove(projectile)
-  
     #do i-frame stuff and shot cooldown stuff
     i_frames += 20
     for enemy in enemies:
@@ -612,6 +717,23 @@ while True:
                     break
                 except:
                   pass
+          elif enemy.kind == "boss":
+            if (projectile.x > enemy.x - enemy.width and projectile.x < enemy.x + enemy.width and projectile.y > (enemy.y-8) - enemy.height and projectile.y < (enemy.y-8) + enemy.height) or projectileRect.collidepoint(enemy.x, enemy.y):
+              if enemy.damage("d", p.strength, enemy.hp) == 0:
+                if projectile.image != droplet:
+                  pass
+                else:
+                  enemy.i_frame = 0
+              try:
+                  projectiles.remove(projectile)
+                  if enemy.hp <= 0:
+                    p.exp += 25
+                    bossSlain = True
+                    enemies.remove(enemy)
+                    break
+                  break
+              except:
+                pass
       elif projectile.owner in enemies: #since the owner is not the player, check if it is touching the player to apply damage
         if projectile.x > p.x - p.width and projectile.x < p.x + p.width and projectile.y > p.y - p.height and projectile.y < p.y + p.height:
           i_frames += 5 * clock.get_time()
@@ -624,7 +746,7 @@ while True:
             pass
     #checks if enemies are touching the player
     for enemy in enemies:
-      if enemy.kind == "saltCube":
+      if enemy.kind == "saltCube" or enemy.kind == "boss":
         if p.x > enemy.x - enemy.width and p.x < enemy.x + enemy.width and p.y > enemy.y - enemy.height and p.y < enemy.y + enemy.height:
           i_frames += clock.get_time()
           if p.damage("d", 1*p.diffMult, p.hp, i_frames) == 0:
@@ -635,6 +757,9 @@ while True:
         enemy.saltCubeAi(p.x, p.y)
       if enemy.kind == "ctb":
         if enemy.ctbAi(p.x, p.y, shot_cooldown) == 0:
+          shot_cooldown = 0
+      if enemy.kind == "boss":
+        if enemy.bossAi(p.x, p.y, shot_cooldown) == 0:
           shot_cooldown = 0
     try:
       for i in range(len(projectiles)): #removes projectiles that are out of bounds
@@ -653,6 +778,7 @@ while True:
             projectile.direction = (projectile.direction - 4) % 8
             projectile.owner = p
             projectile.pierce = p.pierce * 2
+            p.damage('h', 1*p.diffMult, p.hp, 1501)
             projectile.damage = p.strength * 2
     if enemies == [] or (len(enemies) < p.level//3): #waves
       verticies = random.choice([3, 4, 8])
@@ -665,7 +791,7 @@ while True:
       if p.changeLevelMods(burstShotUnlocked) == True: # do levels
         burstShotUnlocked = True
     previous_level = current_level
-    activeRoom, previousRoom = swapRoom(activeRoom, previousRoom, rooms)
+    activeRoom, previousRoom = swapRoom(activeRoom, previousRoom, rooms, noEscape)
     mouse = pygame.mouse.get_pos()
     for event in pygame.event.get():
       if event.type == QUIT:
@@ -673,22 +799,58 @@ while True:
         sys.exit()
       if event.type == pygame.MOUSEBUTTONDOWN:
           mbuttons = pygame.mouse.get_pressed()
-          if mbuttons[0]:
+          if mbuttons[0] and p.Class != "mage":
             mousePos = pygame.mouse.get_pos()
             p.attack(slash, "meele", mouse=mousePos, projectiles=projectiles)
-          if mbuttons[2]:
+          if mbuttons[2] and p.Class == "berserker":
             mousePos = pygame.mouse.get_pos()
             p.attack(parry, "parry", mouse=mousePos, projectiles=projectiles)
-    redraw(activeRoom, previousRoom)
+    if activeRoom == 1 and firstRoomEnemiesSpawned == False:
+      if enemies == [] or (len(enemies) < p.level//3): #waves
+        verticies = random.choice([3, 4, 8])
+        wave(enemies, [random.choice(enemyChoices) for each in range(verticies)], verticies)
+      firstRoomEnemiesSpawned = True
+    for enemy in enemies:
+      if enemy.x > rooms[activeRoom].right:
+        enemy.x = rooms[activeRoom].right - enemy.width
+      if enemy.y < rooms[activeRoom].top:
+        enemy.y = rooms[activeRoom].top + enemy.height
+      if enemy.y > rooms[activeRoom].bottom - enemy.height // 2:
+        enemy.y = rooms[activeRoom].bottom - enemy.height
+    if activeRoom == 2 and bossSlain == False and bossSpawned == False:
+      enemies.append(Enemy(boss, 1, rooms[activeRoom].centerx, rooms[activeRoom].centery, "boss", 25*p.diffMult, 0))
+      bossSpawned = True
+      noEscape = True
+    if bossSlain == True:
+      gameState = 'restart'
+    redraw(activeRoom, previousRoom, p)
     clock.tick(30)
-    """
-  if p.hp <= 0: #player death
-    DISPLAYSURF.blit(background, (0,0))
-    DISPLAYSURF.blit(pygame.transform.scale2x(gameover), (0, 0))
-    pygame.display.update()
-    pygame.time.wait(2000)
-    pygame.quit()
-    quit()"""
+  if gameState == 'restart':
+    
+    while gameState == 'restart':
+      font = pygame.font.SysFont(None, 25)
+      DISPLAYSURF.blit(pygame.transform.scale2x(background), (0,0))
+      Text = 'Thank you for completing the demo!'
+      DISPLAYSURF.blit(font.render(Text, True, (0, 0, 0)), (70, 41))
+      restartButton = pygame.Rect((600//2, 450//2), (75, 30))
+      font = pygame.font.SysFont(None, 48)
+      restart = 'Restart?'
+      DISPLAYSURF.blit(font.render(restart, True, (0, 0, 0)), (restartButton.x, restartButton.y))
+      for event in pygame.event.get():
+        if event.type == pygame.MOUSEBUTTONDOWN:
+          mouse = pygame.mouse.get_pos()
+          if mouse[0] > restartButton.x and mouse[0] < restartButton.right and mouse[1] > restartButton.y and mouse[1] < restartButton.bottom:
+            gameState = 'characterSelect'
+            break
+          print(mouse, (restartButton.x, restartButton.y), (restartButton.right, restartButton.bottom))
+
+        if event.type == QUIT:
+          pygame.quit()
+          sys.exit()
+      if gameState == 'characterSelect':
+        init()
+        break
+      pygame.display.update()
   if gameState == 'starting':
     while gameState == 'starting':
       DISPLAYSURF.blit(pygame.transform.scale2x(background), (0,0))
@@ -737,6 +899,7 @@ while True:
             classChoice = Arch
             break
       if gameState == 'main':
+        p = None
         p = Player(player, 3, 300, 225, 6, classChoice)
         break
       if event.type == QUIT:
